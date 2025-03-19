@@ -1,0 +1,35 @@
+name: Lint and Type-Check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  lint-and-type-check:
+    name: Run Linting and Type-Checking
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      # Step 3: Install dependencies
+      - name: Install dependencies
+        run: yarn install
+
+      # Step 4: Run linting
+      - name: Run ESLint
+        run: yarn lint
+
+      # Step 5: Run type-checking
+      - name: Run TypeScript Type-Checking
+        run: yarn type-check
