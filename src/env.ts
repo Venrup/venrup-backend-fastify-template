@@ -6,12 +6,12 @@ const envSchema = z.object({
   NODE_ENV: z
     .enum(['development', 'production', 'test'])
     .default('development'),
-  PORT: z.string().transform(Number).default('8000'),
-  BACKEND_URL: z.string().url(),
-  FRONTEND_URL: z.string().url(),
+  PORT: z.string().transform(Number).default(8000),
+  BACKEND_URL: z.url(),
+  FRONTEND_URL: z.url(),
 
   // Database
-  DATABASE_URL: z.string().url(),
+  DATABASE_URL: z.url(),
 
   // JWT
   JWT_SECRET_KEY: z.string().min(32),
@@ -30,7 +30,7 @@ const validateEnv = () => {
     return envSchema.parse(process.env)
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const missingVars = error.errors.map(
+      const missingVars = error.issues.map(
         (err) => `${err.path.join('.')}: ${err.message}`
       )
       logger.error('Invalid environment variables:\n', missingVars.join('\n'))

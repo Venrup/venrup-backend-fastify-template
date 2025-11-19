@@ -1,15 +1,14 @@
-import { buildJsonSchemas } from 'fastify-zod'
 import { z } from 'zod'
 import { BaseResponseSchema } from '../types/api'
 
 export const LoginSchema = z.object({
-  username: z.string().email(),
+  username: z.email(),
   password: z.string().min(8)
 })
 
 export const RegisterSchema = z.object({
   name: z.string().min(2),
-  email: z.string().email(),
+  email: z.email(),
   password: z.string().min(8)
 })
 
@@ -62,19 +61,3 @@ export type LoginInput = z.infer<typeof LoginSchema>
 export type RegisterInput = z.infer<typeof RegisterSchema>
 export type RefreshTokenInput = z.infer<typeof RefreshTokenSchema>
 export type ChangePasswordInput = z.infer<typeof ChangePasswordSchema>
-
-export const { schemas: authSchemas, $ref } = buildJsonSchemas(
-  {
-    LoginSchema,
-    RegisterSchema,
-    RefreshTokenSchema,
-    ChangePasswordSchema,
-
-    // Response schemas
-    LoginResponseSchema,
-    RegisterResponseSchema,
-    RefreshTokenResponseSchema,
-    MessageResponseSchema
-  },
-  { $id: 'auth' }
-)

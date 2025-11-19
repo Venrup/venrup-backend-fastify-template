@@ -1,4 +1,3 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify'
 import {
   registerUserService,
   loginUserService,
@@ -7,35 +6,45 @@ import {
   deleteAccountService,
   handleGoogleAuthService
 } from '../services/auth'
-import {
-  $ref,
-  type RegisterInput,
-  type LoginInput,
-  type RefreshTokenInput,
-  type ChangePasswordInput
-} from '../schemas/authSchema'
 import { env } from '../env'
-import { commonRef } from '../types/api'
 import logger from '../utils/logger'
 import { ApiError } from '../errors/ApiError'
+import { FastifyPluginAsyncZodOpenApi } from 'fastify-zod-openapi'
+import {
+  ChangePasswordSchema,
+  LoginResponseSchema,
+  LoginSchema,
+  MessageResponseSchema,
+  RefreshTokenResponseSchema,
+  RefreshTokenSchema,
+  RegisterResponseSchema,
+  RegisterSchema
+} from '../schemas/authSchema'
+import {
+  ConflictErrorSchema,
+  ForbiddenErrorSchema,
+  InternalServerErrorSchema,
+  UnauthorizedErrorSchema,
+  ValidationErrorSchema
+} from '../types/api'
 
-const authRoutes = async (fastify: FastifyInstance) => {
+export const authRoutes: FastifyPluginAsyncZodOpenApi = async (fastify) => {
   fastify.post(
     '/register',
     {
       schema: {
         description: 'Register a new user account',
         tags: ['Authentication'],
-        body: $ref('RegisterSchema'),
+        body: RegisterSchema,
         response: {
-          201: $ref('RegisterResponseSchema'),
-          409: commonRef('ConflictErrorResponse'),
-          422: commonRef('ValidationErrorResponse'),
-          500: commonRef('InternalServerErrorResponse')
+          201: RegisterResponseSchema,
+          409: ConflictErrorSchema,
+          422: ValidationErrorSchema,
+          500: InternalServerErrorSchema
         }
       }
     },
-    async (request: FastifyRequest<{ Body: RegisterInput }>, reply) => {
+    async (request, reply) => {
       const data = await registerUserService(request.body)
       return await reply.send({ success: true, data })
     }
@@ -47,17 +56,17 @@ const authRoutes = async (fastify: FastifyInstance) => {
       schema: {
         description: 'Authenticate user and get access token',
         tags: ['Authentication'],
-        body: $ref('LoginSchema'),
+        body: LoginSchema,
         response: {
-          200: $ref('LoginResponseSchema'),
-          401: commonRef('UnauthorizedErrorResponse'),
-          403: commonRef('ForbiddenErrorResponse'),
-          422: commonRef('ValidationErrorResponse'),
-          500: commonRef('InternalServerErrorResponse')
+          200: LoginResponseSchema,
+          401: UnauthorizedErrorSchema,
+          403: ForbiddenErrorSchema,
+          422: ValidationErrorSchema,
+          500: InternalServerErrorSchema
         }
       }
     },
-    async (request: FastifyRequest<{ Body: LoginInput }>, reply) => {
+    async (request, reply) => {
       const data = await loginUserService(request.body)
       return await reply.send({ success: true, data })
     }
@@ -69,15 +78,15 @@ const authRoutes = async (fastify: FastifyInstance) => {
       schema: {
         description: 'Refresh access token using refresh token',
         tags: ['Authentication'],
-        body: $ref('RefreshTokenSchema'),
+        body: RefreshTokenSchema,
         response: {
-          200: $ref('RefreshTokenResponseSchema'),
-          401: commonRef('UnauthorizedErrorResponse'),
-          500: commonRef('InternalServerErrorResponse')
+          200: RefreshTokenResponseSchema,
+          401: UnauthorizedErrorSchema,
+          500: InternalServerErrorSchema
         }
       }
     },
-    async (request: FastifyRequest<{ Body: RefreshTokenInput }>, reply) => {
+    async (request, reply) => {
       const data = await refreshTokenService(request.body.refreshToken)
       return await reply.send({ success: true, data })
     }
@@ -90,17 +99,17 @@ const authRoutes = async (fastify: FastifyInstance) => {
       schema: {
         description: 'Change user password (requires authentication)',
         tags: ['Authentication'],
-        body: $ref('ChangePasswordSchema'),
+        body: ChangePasswordSchema,
         response: {
-          200: $ref('MessageResponseSchema'),
-          401: commonRef('UnauthorizedErrorResponse'),
-          403: commonRef('ForbiddenErrorResponse'),
-          422: commonRef('ValidationErrorResponse'),
-          500: commonRef('InternalServerErrorResponse')
+          200: MessageResponseSchema,
+          401: UnauthorizedErrorSchema,
+          403: ForbiddenErrorSchema,
+          422: ValidationErrorSchema,
+          500: InternalServerErrorSchema
         }
       }
     },
-    async (request: FastifyRequest<{ Body: ChangePasswordInput }>, reply) => {
+    async (request, reply) => {
       const data = await changePasswordService(
         request.user.id,
         request.body.newPassword
@@ -117,13 +126,13 @@ const authRoutes = async (fastify: FastifyInstance) => {
         description: 'Delete user account (requires authentication)',
         tags: ['Authentication'],
         response: {
-          200: $ref('MessageResponseSchema'),
-          401: commonRef('UnauthorizedErrorResponse'),
-          500: commonRef('InternalServerErrorResponse')
+          200: MessageResponseSchema,
+          401: UnauthorizedErrorSchema,
+          500: InternalServerErrorSchema
         }
       }
     },
-    async (request: FastifyRequest, reply) => {
+    async (request, reply) => {
       const data = await deleteAccountService(request.user.id)
       return await reply.send({ success: true, data })
     }
@@ -140,11 +149,11 @@ const authRoutes = async (fastify: FastifyInstance) => {
             description: 'Redirect to frontend with auth data',
             type: 'null'
           },
-          500: commonRef('InternalServerErrorResponse')
+          500: InternalServerErrorSchema
         }
       }
     },
-    async (request: FastifyRequest, reply) => {
+    async (request, reply) => {
       try {
         const { token } =
           await fastify.googleOAuth.getAccessTokenFromAuthorizationCodeFlow(
@@ -157,7 +166,14 @@ const authRoutes = async (fastify: FastifyInstance) => {
             headers: { Authorization: `Bearer ${token.access_token}` }
           }
         )
-        const profile = await response.json()
+        type ProfileType = {
+          sub: string
+          email: string
+          given_name: string
+          family_name: string
+        }
+
+        const profile = (await response.json()) as ProfileType
 
         const authResponse = await handleGoogleAuthService({
           googleId: profile.sub,

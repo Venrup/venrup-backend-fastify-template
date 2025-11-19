@@ -1,4 +1,3 @@
-import { buildJsonSchemas } from 'fastify-zod'
 import { z } from 'zod'
 import { BaseResponseSchema } from '../types/api'
 
@@ -24,15 +23,3 @@ export const UpdateUserResponseSchema = GetUserResponseSchema
 // Types
 export type UpdateAccountInfoInput = z.infer<typeof UpdateAccountInfoSchema>
 export type User = z.infer<typeof UserSchema>
-
-export const { schemas: userSchemas, $ref } = buildJsonSchemas(
-  {
-    // Request schemas
-    UpdateAccountInfoSchema,
-
-    // Response schemas
-    GetUserResponseSchema,
-    UpdateUserResponseSchema
-  },
-  { $id: 'user' }
-)

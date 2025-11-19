@@ -1,7 +1,19 @@
 import { z } from 'zod'
 
-// Build schemas for swagger
-import { buildJsonSchemas } from 'fastify-zod'
+export const FastifyValidationDetailSchema = z.object({
+  message: z.string(),
+  field: z.string()
+})
+export const ZodIssueDetailSchema = z.object({
+  code: z.string(),
+  message: z.string(),
+  path: z.array(z.union([z.string(), z.number()])).optional(),
+  expected: z.string().optional(),
+  received: z.string().optional()
+})
+export const ValidationErrorDetailsSchema = z.array(
+  z.union([FastifyValidationDetailSchema, ZodIssueDetailSchema])
+)
 
 export const BaseErrorSchema = z.object({
   code: z.string(),
@@ -9,79 +21,57 @@ export const BaseErrorSchema = z.object({
   details: z.any().optional()
 })
 
-// Base response structure
 export const BaseResponseSchema = z.object({
   success: z.boolean(),
   data: z.any().optional()
 })
 
-// Common response schemas that can be reused across the application
-export const CommonResponseSchemas = {
-  ValidationError: z.object({
-    success: z.literal(false),
-    error: BaseErrorSchema.extend({
-      code: z.literal('VALIDATION_ERROR'),
-      details: z.array(
-        z.object({
-          field: z.string(),
-          message: z.string()
-        })
-      )
-    })
-  }),
-
-  BadRequestError: z.object({
-    success: z.literal(false),
-    error: BaseErrorSchema.extend({
-      code: z.literal('BAD_REQUEST')
-    })
-  }),
-
-  NotFoundError: z.object({
-    success: z.literal(false),
-    error: BaseErrorSchema.extend({
-      code: z.literal('NOT_FOUND')
-    })
-  }),
-
-  UnauthorizedError: z.object({
-    success: z.literal(false),
-    error: BaseErrorSchema.extend({
-      code: z.literal('UNAUTHORIZED')
-    })
-  }),
-
-  ForbiddenError: z.object({
-    success: z.literal(false),
-    error: BaseErrorSchema.extend({
-      code: z.literal('FORBIDDEN')
-    })
-  }),
-
-  ConflictError: z.object({
-    success: z.literal(false),
-    error: BaseErrorSchema.extend({
-      code: z.literal('ALREADY_EXISTS')
-    })
-  }),
-
-  InternalServerError: z.object({
-    success: z.literal(false),
-    error: BaseErrorSchema.extend({
-      code: z.literal('INTERNAL_SERVER_ERROR')
-    })
+export const ValidationErrorSchema = z.object({
+  success: z.literal(false),
+  error: BaseErrorSchema.extend({
+    code: z.literal('VALIDATION_ERROR'),
+    details: ValidationErrorDetailsSchema.optional()
   })
-}
+})
 
-export const { schemas: commonSchemas, $ref: commonRef } = buildJsonSchemas(
-  {
-    ValidationErrorResponse: CommonResponseSchemas.ValidationError,
-    BadRequestErrorResponse: CommonResponseSchemas.BadRequestError,
-    NotFoundErrorResponse: CommonResponseSchemas.NotFoundError,
-    UnauthorizedErrorResponse: CommonResponseSchemas.UnauthorizedError,
-    ForbiddenErrorResponse: CommonResponseSchemas.ForbiddenError,
-    ConflictErrorResponse: CommonResponseSchemas.ConflictError,
-    InternalServerErrorResponse: CommonResponseSchemas.InternalServerError
-  },
-  { $id: 'common' }
-)
+export const BadRequestErrorSchema = z.object({
+  success: z.literal(false),
+  error: BaseErrorSchema.extend({
+    code: z.literal('BAD_REQUEST')
+  })
+})
+
+export const NotFoundErrorSchema = z.object({
+  success: z.literal(false),
+  error: BaseErrorSchema.extend({
+    code: z.literal('NOT_FOUND')
+  })
+})
+
+export const UnauthorizedErrorSchema = z.object({
+  success: z.literal(false),
+  error: BaseErrorSchema.extend({
+    code: z.literal('UNAUTHORIZED')
+  })
+})
+
+export const ForbiddenErrorSchema = z.object({
+  success: z.literal(false),
+  error: BaseErrorSchema.extend({
+    code: z.literal('FORBIDDEN')
+  })
+})
+
+export const ConflictErrorSchema = z.object({
+  success: z.literal(false),
+  error: BaseErrorSchema.extend({
+    code: z.literal('ALREADY_EXISTS')
+  })
+})
+
+export const InternalServerErrorSchema = z.object({
+  success: z.literal(false),
+  error: BaseErrorSchema.extend({
+    code: z.literal('INTERNAL_SERVER_ERROR')
+  })
+})
