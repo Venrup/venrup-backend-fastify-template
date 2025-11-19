@@ -1,11 +1,8 @@
-import type { FastifyReply, FastifyRequest } from 'fastify'
+import type { FastifyRequest } from 'fastify'
 import { verifyAccessToken } from '../utils/auth/jwt'
 import { ApiError } from '../errors/ApiError'
 
-export const authMiddleware = async (
-  request: FastifyRequest,
-  reply: FastifyReply
-) => {
+export const authMiddleware = async (request: FastifyRequest) => {
   const authHeader = request.headers.authorization
   if (!authHeader) {
     throw ApiError.unauthorized()

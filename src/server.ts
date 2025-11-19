@@ -1,21 +1,26 @@
 import 'dotenv/config'
 import { env } from './env'
 import Fastify from 'fastify'
-import authRoutes from './routes/authRoutes'
-import { authSchemas } from './schemas/authSchema'
 import { authMiddleware } from './middleware/auth'
 import swagger from '@fastify/swagger'
 import swaggerUi from '@fastify/swagger-ui'
 import { version } from '../package.json'
-import { userSchemas } from './schemas/userSchema'
-import userRoutes from './routes/userRoutes'
 import cors from '@fastify/cors'
 import fastifyOauth2, { type OAuth2Namespace } from '@fastify/oauth2'
 
 import type { User } from './utils/typeDefs'
 import errorHandler from './plugins/errorHandler'
-import { commonSchemas } from './types/api'
 import logger, { loggerHooks } from './utils/logger'
+import {
+  fastifyZodOpenApiPlugin,
+  fastifyZodOpenApiTransformers,
+  FastifyZodOpenApiTypeProvider,
+  serializerCompiler,
+  validatorCompiler
+} from 'fastify-zod-openapi'
+
+import { authRoutes } from './routes/authRoutes'
+import { userRoutes } from './routes/userRoutes'
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -27,26 +32,16 @@ declare module 'fastify' {
   }
 }
 
-const fastify = Fastify()
+const app = Fastify()
 
-// Register CORS
-fastify.register(cors, { origin: '*', credentials: true })
+app.setValidatorCompiler(validatorCompiler)
+app.setSerializerCompiler(serializerCompiler)
 
-// Middleware for authentication
-fastify.decorate('authenticate', authMiddleware)
-
-// Register all schemas
-for (const schema of [
-  ...commonSchemas,
-  ...authSchemas,
-  ...userSchemas,
-]) {
-  fastify.addSchema(schema)
-}
+const fastify = app.withTypeProvider<FastifyZodOpenApiTypeProvider>()
 
 // Register Swagger
 const registerSwagger = async () => {
-  await fastify.register(swagger, {
+  await app.register(swagger, {
     openapi: {
       info: {
         title: 'Fastify API',
@@ -62,55 +57,63 @@ const registerSwagger = async () => {
           }
         }
       },
-      security: [{ bearerAuth: [] }],
-      tags: [
-        { name: 'Authentication', description: 'Auth related endpoints' },
-        { name: 'User', description: 'User management endpoints' },
-      ]
-    }
+      security: [{ bearerAuth: [] }]
+    },
+    ...fastifyZodOpenApiTransformers
   })
 
-  await fastify.register(swaggerUi, {
-    routePrefix: '/api'
+  await app.register(swaggerUi, {
+    routePrefix: '/api',
+    staticCSP: false,
+    transformSpecification: (swaggerObject) => swaggerObject,
+    transformSpecificationClone: true
   })
 }
 
-registerSwagger()
-
-// Register only the necessary hooks
-fastify.addHook('preHandler', loggerHooks.preHandler)
-fastify.addHook('onSend', loggerHooks.onSend)
-fastify.addHook('onError', loggerHooks.onError)
-
 fastify.get('/', async () => 'Hello there! 👋')
-
-// Reigster google oauth
-fastify.register(fastifyOauth2, {
-  name: 'googleOAuth',
-  scope: ['profile', 'email'],
-  credentials: {
-    client: {
-      id: env.GOOGLE_CLIENT_ID,
-      secret: env.GOOGLE_CLIENT_SECRET
-    },
-    auth: fastifyOauth2.GOOGLE_CONFIGURATION
-  },
-  startRedirectPath: '/auth/google',
-  callbackUri: `${env.BACKEND_URL}/auth/google/callback`
-})
-
-// Routes
-fastify.register(authRoutes, { prefix: '/auth' })
-fastify.register(userRoutes, { prefix: '/user' })
-
-// Error handler
-fastify.setErrorHandler(errorHandler)
 
 const start = async () => {
   try {
-    const port = Number(env.PORT) || 3000
+    const port = env.PORT
 
-    await fastify.listen({
+    await fastify.register(fastifyZodOpenApiPlugin)
+
+    await registerSwagger()
+
+    // Register CORS
+    await fastify.register(cors, { origin: '*', credentials: true })
+
+    // Reigster google oauth
+    await fastify.register(fastifyOauth2, {
+      name: 'googleOAuth',
+      scope: ['profile', 'email'],
+      credentials: {
+        client: {
+          id: env.GOOGLE_CLIENT_ID,
+          secret: env.GOOGLE_CLIENT_SECRET
+        },
+        auth: fastifyOauth2.GOOGLE_CONFIGURATION
+      },
+      startRedirectPath: '/auth/google',
+      callbackUri: `${env.BACKEND_URL}/auth/google/callback`
+    })
+
+    // Decorators
+    fastify.decorate('authenticate', authMiddleware)
+
+    // Error handler
+    fastify.setErrorHandler(errorHandler)
+
+    // Routes
+    await fastify.register(authRoutes, { prefix: '/auth' })
+    await fastify.register(userRoutes, { prefix: '/user' })
+
+    // Register only the necessary hooks
+    fastify.addHook('preHandler', loggerHooks.preHandler)
+    fastify.addHook('onSend', loggerHooks.onSend)
+    fastify.addHook('onError', loggerHooks.onError)
+
+    await app.listen({
       port,
       host: '0.0.0.0'
     })
